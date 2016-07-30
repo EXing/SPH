@@ -245,7 +245,7 @@ int main(int argc, char** argv) {
 
     //INIT
     memset(particles, 0, ParticleCount*sizeof(Particle));
-    UpdateGrid();
+    //UpdateGrid();
 
     glutMainLoop();
 
