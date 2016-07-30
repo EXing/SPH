@@ -34,6 +34,8 @@ using namespace std;
 #define SubSteps 100
 #define ShowStep SubSteps * TimeStep
 
+#define WallCount 4
+
 class Particle
 {
 public:
@@ -66,7 +68,7 @@ Neighbors neighbors[ParticleCount];
 Vector2 prePosition[ParticleCount];
 Vector2 relaxedPosition[ParticleCount];
 
-Wall walls[4] = {
+Wall walls[WallCount] = {
         Wall(1, 0, 0),
         Wall(0, 1, 0),
         Wall(-1, 0, -ViewWidth),
@@ -188,6 +190,45 @@ void momentumEquation()
     }
 }
 
+void collisions()
+{
+    for(int i = 0; i < ParticleCount; i++)
+    {
+        Particle &p = particles[i];
+        for(int j = 0; j < WallCount; j++)
+        {
+            const Wall &wall = walls[j];
+            double dis = wall.x * p.pos.x + wall.y * p.pos.y - wall.c;
+            if(dis < ParticleRadius)
+            {
+                switch(j)
+                {
+                    case 0:
+                    case 2: p.v.y = - p.v.y;
+                        break;
+                    case 1:
+                    case 3: p.v.x = - p.v.x;
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+}
+
+void update()
+{
+    for(int step = 0; step < SubSteps; step++)
+    {
+        gravityForces();
+        advance();
+        calculatePressure();
+        updateGrid();
+        collisions();
+    }
+    glutPostRedisplay();
+}
 int main() {
 
     return 0;
