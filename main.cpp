@@ -142,6 +142,8 @@ double W(double x)
         return sigma3 * (1 - 1.5 * x * x * (1 - x / 2));
 }
 
+Vector2 deltaW(double x);
+
 void calculatePressure()
 {
     double B = Density0 * Cs * Cs / Gamma;
@@ -183,14 +185,17 @@ void momentumEquation()
 {
     for(int i = 0; i < ParticleCount; i++)
     {
-        const Particle &p = particles[i];
-        Vector2 deltaV(0,0);
+        Particle &p = particles[i];
+        Vector2 delta(0,0);
 
         for(int j;j<neighbors[i].count;j++)
         {
             const Particle& pj = *neighbors[i].particles[j];
             double dis = neighbors[i].dis[j];
+
+            delta = delta-deltaW(dis)*Mass*(p.pressure/p.density/p.density+pj.pressure/pj.density/pj.density);
         }
+        p.v = p.v+delta*TimeStep;
     }
 }
 
