@@ -218,7 +218,7 @@ void Render()
 
 void Update()
 {
-    for (size_t step=0; step<SubSteps; ++step)
+   /* for (size_t step=0; step<SubSteps; ++step)
     {
         EmitParticles();
 
@@ -230,7 +230,7 @@ void Update()
         moveToRelaxedPositions();
         updateGrid();
         resolveCollisions();
-    }
+    }*/
 
     glutPostRedisplay();
 }
