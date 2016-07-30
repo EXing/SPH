@@ -199,6 +199,28 @@ void momentumEquation()
     }
 }
 
+void viscosityEquation()
+{
+    for(int i=0;i< ParticleCount;i++)
+    {
+        Particle &p = particles[i];
+        Vector2 delta(0,0);
+
+        for(int j;j<neighbors[i].count;j++)
+        {
+            const Particle& pj = *neighbors[i].particles[j];
+            double dis = neighbors[i].dis[j];
+
+            double dianji =(p.v-pj.v)*(p.pos-pj.pos);
+            if(dianji<0)
+            {
+                delta = delta - deltaW(dis)*Mass*((-2*Alpha*H*Cs/(p.density+pj.density))*(dianji/(dis*dis+Epsilon*H*H)));
+            }
+        }
+        p.v = p.v+delta*TimeStep;
+    }
+}
+
 void Render()
 {
     glClearColor(0.02f, 0.01f, 0.01f, 1);
@@ -223,19 +245,16 @@ void Render()
 
 void Update()
 {
-   /* for (size_t step=0; step<SubSteps; ++step)
+    for (size_t step=0; step<SubSteps; ++step)
     {
-        EmitParticles();
-
         gravityForce();
+        calculatePressure();
+        momentumEquation();
+        viscosityEquation();
         advance();
         updateGrid();
-        calculatePressure();
-        calculateRelaxedPositions();
-        moveToRelaxedPositions();
-        updateGrid();
-        resolveCollisions();
-    }*/
+        //resolveCollisions();
+    }
 
     glutPostRedisplay();
 }
