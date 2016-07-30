@@ -12,7 +12,7 @@ using namespace std;
 
 #define ParticleRadius 0.05
 #define Gamma 7
-#define Eta 0.01
+// #define Eta 0.01
 // alpha is between 0.08~0.5
 #define Alpha 0.08
 #define Cs 1500
@@ -21,7 +21,6 @@ using namespace std;
 #define Gravity 9.81
 #define TimeStep 4.52E-4
 #define H (6 * ParticleRadius)
-#define Viscocity 0.5
 #define Mass (Density0 * 4 / 3 * Pi * pow(ParticleRadius, 3))
 #define MaxNeighborCount 64
 
@@ -38,15 +37,14 @@ using namespace std;
 #define sigma3 ( 2 / (3 * h))
 
 #define WallCount 4
+#define EmitterCount 1
 
 class Particle {
 public:
     Vector2 pos;
     Vector2 v;
     double density;
-    double nearDensity;
     double pressure;
-    double nearPressure;
     Particle *next;
 };
 
@@ -67,7 +65,7 @@ int count = 0;
 Particle particles[ParticleCount];
 Neighbors neighbors[ParticleCount];
 Vector2 prePosition[ParticleCount];
-Vector2 relaxedPosition[ParticleCount];
+// Vector2 relaxedPosition[ParticleCount];
 
 Wall walls[WallCount] = {
         Wall(1, 0, 0),
@@ -207,8 +205,8 @@ void viscosityEquation() {
 
             double dianji = (p.v - pj.v) * (p.pos - pj.pos);
             if (dianji < 0) {
-                delta = delta - deltaW(dis) * Mass * ((-2 * Alpha * H * Cs / (p.density + pj.density)) *
-                                                      (dianji / (dis * dis + Epsilon * H * H)));
+                delta = delta - deltaW(dis) * Mass * ((-2 * Alpha * ParticleRadius * Cs / (p.density + pj.density)) *
+                                                      (dianji / (dis * dis + Epsilon * ParticleRadius * ParticleRadius)));
             }
         }
         p.v = p.v + delta * TimeStep;
@@ -238,6 +236,8 @@ void collisions() {
         }
     }
 }
+
+
 
 void generateParticles() {
     if (count == ParticleCount)
