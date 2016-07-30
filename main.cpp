@@ -142,6 +142,8 @@ double W(double x)
         return sigma3 * (1 - 1.5 * x * x * (1 - x / 2));
 }
 
+Vector2 deltaW(double x);
+
 void calculatePressure()
 {
     double B = Density0 * Cs * Cs / Gamma;
@@ -183,14 +185,39 @@ void momentumEquation()
 {
     for(int i = 0; i < ParticleCount; i++)
     {
-        const Particle &p = particles[i];
-        Vector2 deltaV(0,0);
+        Particle &p = particles[i];
+        Vector2 delta(0,0);
 
         for(int j;j<neighbors[i].count;j++)
         {
             const Particle& pj = *neighbors[i].particles[j];
             double dis = neighbors[i].dis[j];
+
+            delta = delta-deltaW(dis)*Mass*(p.pressure/p.density/p.density+pj.pressure/pj.density/pj.density);
         }
+        p.v = p.v+delta*TimeStep;
+    }
+}
+
+void viscosityEquation()
+{
+    for(int i=0;i< ParticleCount;i++)
+    {
+        Particle &p = particles[i];
+        Vector2 delta(0,0);
+
+        for(int j;j<neighbors[i].count;j++)
+        {
+            const Particle& pj = *neighbors[i].particles[j];
+            double dis = neighbors[i].dis[j];
+
+            double dianji =(p.v-pj.v)*(p.pos-pj.pos);
+            if(dianji<0)
+            {
+                delta = delta - deltaW(dis)*Mass*((-2*Alpha*H*Cs/(p.density+pj.density))*(dianji/(dis*dis+Epsilon*H*H)));
+            }
+        }
+        p.v = p.v+delta*TimeStep;
     }
 }
 
@@ -220,16 +247,13 @@ void Update()
 {
     for (size_t step=0; step<SubSteps; ++step)
     {
-        EmitParticles();
-
         gravityForce();
+        calculatePressure();
+        momentumEquation();
+        viscosityEquation();
         advance();
         updateGrid();
-        calculatePressure();
-        calculateRelaxedPositions();
-        moveToRelaxedPositions();
-        updateGrid();
-        resolveCollisions();
+        //resolveCollisions();
     }
 
     glutPostRedisplay();
@@ -245,7 +269,7 @@ int main(int argc, char** argv) {
 
     //INIT
     memset(particles, 0, ParticleCount*sizeof(Particle));
-    UpdateGrid();
+    //UpdateGrid();
 
     glutMainLoop();
 
