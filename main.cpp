@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 #include <cstring>
+#include <memory.h>
 #include "Vector2.h"
 
 using namespace std;
@@ -22,7 +23,7 @@ using namespace std;
 #define TimeStep 4.52E-4
 #define H (6 * ParticleRadius)
 #define Viscocity 0.5
-#define Mass Density0 * 4 / 3 * Pi * pow(ParticleRadius, 3)
+#define Mass (Density0 * 4 / 3 * Pi * pow(ParticleRadius, 3))
 #define MaxNeighborCount 64
 
 #define ScreenWidth 500
@@ -112,7 +113,7 @@ void updateGrid()
     }
 }
 
-void gravityForces()
+void gravityForce()
 {
     for(int i = 0; i < ParticleCount; i++)
         particles[i].v.y -= Gravity * TimeStep;
@@ -182,13 +183,71 @@ void momentumEquation()
 {
     for(int i = 0; i < ParticleCount; i++)
     {
-        Particle &p = particles[i];
-        Vector2 position = p.pos;
+        const Particle &p = particles[i];
+        Vector2 deltaV(0,0);
 
+        for(int j;j<neighbors[i].count;j++)
+        {
+            const Particle& pj = *neighbors[i].particles[j];
+            double dis = neighbors[i].dis[j];
+        }
     }
 }
 
-int main() {
+void Render()
+{
+    glClearColor(0.02f, 0.01f, 0.01f, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, ViewWidth, 0, ViewHeight, 0, 1);
+
+    glEnable(GL_POINT_SMOOTH);
+
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glPointSize(2.5f*ParticleRadius*ScreenWidth/ViewWidth);
+
+    glVertexPointer(2, GL_DOUBLE, sizeof(Particle), particles);
+    glDrawArrays(GL_POINTS, 0, ParticleCount);
+
+    glDisableClientState(GL_VERTEX_ARRAY);
+
+    glutSwapBuffers();
+}
+
+void Update()
+{
+    for (size_t step=0; step<SubSteps; ++step)
+    {
+        EmitParticles();
+
+        gravityForce();
+        advance();
+        updateGrid();
+        calculatePressure();
+        calculateRelaxedPositions();
+        moveToRelaxedPositions();
+        updateGrid();
+        resolveCollisions();
+    }
+
+    glutPostRedisplay();
+}
+
+int main(int argc, char** argv) {
+    glutInitWindowSize(ScreenWidth, ScreenHeight);
+    glutInit(&argc, argv);
+    glutInitDisplayString("samples stencil>=3 rgb double depth");
+    glutCreateWindow("SPH");
+    glutDisplayFunc(Render);
+    glutIdleFunc(Update);
+
+    //INIT
+    memset(particles, 0, ParticleCount*sizeof(Particle));
+    UpdateGrid();
+
+    glutMainLoop();
 
     return 0;
 }
