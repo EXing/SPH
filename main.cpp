@@ -2,7 +2,7 @@
 #include <GL/glut.h>
 #include <cmath>
 #include <algorithm>
-#include <cstring>
+#include <memory.h>
 #include "Vector2.h"
 
 using namespace std;
@@ -55,13 +55,13 @@ struct Wall {
     double x, y, c;
 };
 
+//neighbors[i] used to record the ith particle's neighbors in its centered grid.
 struct Neighbors {
     const Particle *particles[MaxNeighborCount];
     double dis[MaxNeighborCount];
     int count;
 };
 
-int count = 0;
 Particle particles[ParticleCount];
 Neighbors neighbors[ParticleCount];
 Vector2 prePosition[ParticleCount];
@@ -77,12 +77,16 @@ Wall walls[WallCount] = {
 const int GridWidth = (int) (ViewWidth / CellSize);
 const int GridHeight = (int) (ViewHeight / CellSize);
 const int GridCellCount = GridHeight * GridWidth;
+
+//grid[GridCellCount] point to the header of list that particles in the same grid
 Particle *grid[GridCellCount];
+
+//index of grid[]
 int gridCoords[ParticleCount * 2];
 
 void updateGrid() {
     // Clear grid
-    memset(grid, 0, GridCellCount * sizeof(Particle *));
+    memset(grid, NULL, GridCellCount * sizeof(Particle *));
 
     // Add particles to grid
     for (int i = 0; i < ParticleCount; i++) {
@@ -159,9 +163,9 @@ void calculatePressure() {
         double density = 0;
         for (int ni = gi - 1; ni <= gi + 1; ni++) {
             for (int nj = gj - GridWidth; nj <= gj + GridWidth; nj += GridWidth) {
-                for (Particle *pj = grid[ni + nj]; NULL != pj; pj = pj->next) {
+                for (Particle *pj = grid[ni + nj]; pj != NULL; pj = pj->next) {
                     double r = (pj->pos - pi.pos).Sqrt();
-                    if (r < sqrt(Epsilon) || r > H)
+                    if (/*r < sqrt(Epsilon) || */r > H)
                         continue;
 
                     density += Mass * W(r);
@@ -240,6 +244,7 @@ void collisions() {
 
 
 void generateParticles() {
+    int count = 0;
     if (count == ParticleCount)
         return;
 
@@ -268,8 +273,8 @@ void Render() {
 
 void update() {
     for (int step = 0; step < SubSteps; step++) {
-        gravityForces();
         calculatePressure();
+        gravityForces();
         momentumEquation();
         viscosityEquation();
         advance();
