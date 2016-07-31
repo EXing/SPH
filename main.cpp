@@ -2,7 +2,7 @@
 #include <GL/glut.h>
 #include <cmath>
 #include <algorithm>
-#include <memory.h>
+#include <cstring>
 #include "Vector2.h"
 
 using namespace std;
@@ -31,13 +31,42 @@ using namespace std;
 #define CellSize H
 
 #define SubSteps 100
-#define ShowStep SubSteps * TimeStep
+// #define ShowStep SubSteps * TimeStep
 
 #define h 1.0
 #define sigma3 ( 2 / (3 * h))
 
 #define WallCount 4
-#define EmitterCount 1
+
+class Vector2 {
+public:
+    Vector2() { }
+
+    Vector2(double x, double y) : x(x), y(y) { }
+
+    double x;
+    double y;
+
+    Vector2 operator+(Vector2 x) {
+        return Vector2(x.x + this->x, x.y + this->y);
+    }
+
+    Vector2 operator-(Vector2 x) {
+        return Vector2(this->x - x.x, this->y - x.y);
+    }
+
+    double operator*(Vector2 x) {
+        return x.x * this->x + x.y * this->y;
+    }
+
+    Vector2 operator*(double x) {
+        return Vector2(x * this->x, x * this->y);
+    }
+
+    double Sqrt() {
+        return sqrt(this->x * this->x + this->y * this->y);
+    }
+};
 
 class Particle {
 public:
@@ -241,13 +270,15 @@ void collisions() {
     }
 }
 
-
+double random(double x, double y) {
+    return x + (y - x) * ((double) rand() / (double) (RAND_MAX - 1));
+}
 
 void generateParticles() {
-    int count = 0;
-    if (count == ParticleCount)
-        return;
-
+    for (int i = 0; i < ParticleCount; i++) {
+        particles[i].pos = Vector2(random(0, ViewWidth), random(0, ViewHeight));
+        particles[i].v = Vector2(random(0.9f, 1.1f), random(0.9f, 1.1f));
+    }
 }
 
 void Render() {
@@ -294,7 +325,7 @@ int main(int argc, char **argv) {
 
     //INIT
     memset(particles, 0, ParticleCount * sizeof(Particle));
-    //UpdateGrid();
+    UpdateGrid();
 
     glutMainLoop();
 
