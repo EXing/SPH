@@ -3,5 +3,13 @@ project(SPH)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
+find_package(OpenGL)
+if (OPENGL_FOUND)
+    include_directories(${OPENGL_INCLUDE_DIR})
+endif ()
+find_package(GLUT)
+if (GLUT_FOUND)
+    include_directories(${GLUT_INCLUDE_DIR})
+endif ()
 set(SOURCE_FILES main.cpp Vector2.h)
 add_executable(SPH ${SOURCE_FILES})

@@ -1,9 +1,7 @@
 #include <iostream>
 #include <GL/glut.h>
 #include <cmath>
-#include <algorithm>
 #include <cstring>
-#include "Vector2.h"
 
 using namespace std;
 
@@ -11,11 +9,11 @@ using namespace std;
 #define Pi 3.1415926535f
 
 #define ParticleRadius 0.05
-#define Gamma 7
+#define Gamma 7.0
 // #define Eta 0.01
 // alpha is between 0.08~0.5
 #define Alpha 0.08
-#define Cs 1500
+#define Cs 1500.0
 #define Density0 1000
 #define Epsilon 0.01
 #define Gravity 9.81
@@ -31,13 +29,42 @@ using namespace std;
 #define CellSize H
 
 #define SubSteps 100
-#define ShowStep SubSteps * TimeStep
+// #define ShowStep SubSteps * TimeStep
 
 #define h 1.0
 #define sigma3 ( 2 / (3 * h))
 
 #define WallCount 4
-#define EmitterCount 1
+
+class Vector2 {
+public:
+    Vector2() { }
+
+    Vector2(double x, double y) : x(x), y(y) { }
+
+    double x;
+    double y;
+
+    Vector2 operator+(Vector2 x) {
+        return Vector2(x.x + this->x, x.y + this->y);
+    }
+
+    Vector2 operator-(Vector2 x) {
+        return Vector2(this->x - x.x, this->y - x.y);
+    }
+
+    double operator*(Vector2 x) {
+        return x.x * this->x + x.y * this->y;
+    }
+
+    Vector2 operator*(double x) {
+        return Vector2(x * this->x, x * this->y);
+    }
+
+    double Sqrt() {
+        return sqrt(this->x * this->x + this->y * this->y);
+    }
+};
 
 class Particle {
 public:
@@ -61,7 +88,7 @@ struct Neighbors {
     int count;
 };
 
-int count = 0;
+static int count = 0;
 Particle particles[ParticleCount];
 Neighbors neighbors[ParticleCount];
 Vector2 prePosition[ParticleCount];
@@ -161,7 +188,7 @@ void calculatePressure() {
             for (int nj = gj - GridWidth; nj <= gj + GridWidth; nj += GridWidth) {
                 for (Particle *pj = grid[ni + nj]; NULL != pj; pj = pj->next) {
                     double r = (pj->pos - pi.pos).Sqrt();
-                    if (r < sqrt(Epsilon) || r > H)
+                    if (r > H)
                         continue;
 
                     density += Mass * W(r);
@@ -206,7 +233,8 @@ void viscosityEquation() {
             double dianji = (p.v - pj.v) * (p.pos - pj.pos);
             if (dianji < 0) {
                 delta = delta - deltaW(dis) * Mass * ((-2 * Alpha * ParticleRadius * Cs / (p.density + pj.density)) *
-                                                      (dianji / (dis * dis + Epsilon * ParticleRadius * ParticleRadius)));
+                                                      (dianji /
+                                                       (dis * dis + Epsilon * ParticleRadius * ParticleRadius)));
             }
         }
         p.v = p.v + delta * TimeStep;
@@ -237,13 +265,20 @@ void collisions() {
     }
 }
 
-
+double random(double x, double y) {
+    return x + (y - x) * ((double) rand() / (double) (RAND_MAX - 1));
+}
 
 void generateParticles() {
-    if (count == ParticleCount)
+    if (count == ParticleCount - 1)
         return;
-
+    for (int i = 0; i < ParticleCount; i++) {
+        particles[i].pos = Vector2(random(0, ViewWidth), random(0, ViewHeight));
+        particles[i].v = Vector2(random(0.9f, 1.1f), random(0.9f, 1.1f));
+    }
+    count = ParticleCount - 1;
 }
+
 
 void Render() {
     glClearColor(0.02f, 0.01f, 0.01f, 1);
@@ -267,6 +302,7 @@ void Render() {
 }
 
 void update() {
+    generateParticles();
     for (int step = 0; step < SubSteps; step++) {
         gravityForces();
         calculatePressure();
