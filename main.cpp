@@ -8,39 +8,35 @@ using namespace std;
 
 #define ParticleCount 1000
 #define Pi 3.1415926535f
-
 #define ParticleRadius 0.05
 #define Gamma 7
 // #define Eta 0.01
 // alpha is between 0.08~0.5
-#define Alpha 0.4
+#define Alpha 0.5
 #define Cs 88.5
 #define Density0 1000.0
 #define Epsilon 0.01
 #define Gravity 9.81
 #define TimeStep 0.001
 #define H (6 * ParticleRadius)
-#define Mass (40*Density0 * 4 / 3 * Pi * ParticleRadius*ParticleRadius*ParticleRadius)
+#define Mass (Density0 * 2 * ParticleRadius * 2 * ParticleRadius)
 #define MaxNeighborCount 64
-
 #define ScreenWidth 500
 #define ScreenHeight 500
 #define ViewWidth 10.0f
 #define ViewHeight (ScreenHeight * ViewWidth / ScreenWidth)
 #define CellSize H
-
 #define SubSteps 100
-
 #define h ParticleRadius
 #define sigma3 ( 2 / (3 * h))
-
-#define WallCount 4
+#define MatrixRow 25
+#define MatrixCol (ParticleCount/MatrixRow)
 
 class Vector2 {
 public:
-    Vector2() { }
+    Vector2() {}
 
-    Vector2(double x, double y) : x(x), y(y) { }
+    Vector2(double x, double y) : x(x), y(y) {}
 
     double x;
     double y;
@@ -75,16 +71,9 @@ public:
     Particle *next;
 };
 
-// c is a parameter for collision
-struct Wall {
-    Wall(double x, double y, double c) : x(x), y(y), c(c) { }
-
-    double x, y, c;
-};
-
 //neighbors[i] used to record the ith particle's neighbors in its centered grid.
 struct Neighbors {
-    const Particle *particles[MaxNeighborCount];
+     Particle *particles[MaxNeighborCount];
     double dis[MaxNeighborCount];
     int count;
 };
@@ -92,13 +81,6 @@ struct Neighbors {
 Particle particles[ParticleCount];
 Neighbors neighbors[ParticleCount];
 Vector2 prePosition[ParticleCount];
-
-Wall walls[WallCount] = {
-        Wall(1, 0, 0),
-        Wall(0, 1, 0),
-        Wall(-1, 0, -ViewWidth),
-        Wall(0, -1, -ViewHeight)
-};
 
 const int GridWidth = (int) (ViewWidth / CellSize);
 const int GridHeight = (int) (ViewHeight / CellSize);
@@ -164,21 +146,22 @@ double W(double x) {
         return sigma3 * (1 - 1.5 * x * x * (1 - x / 2.0));
 }
 
-Vector2 deltaW(double x) {
+Vector2 deltaW(Vector2 a) {
+    double x = a.Sqrt();
     if (2 < x)
         return Vector2(0, 0);
     else if (1 < x) {
         double k = -3.0 * sigma3 / 4.0 * pow((2 - x), 2);
-        return Vector2(sqrt(1 / (k * k + 1)), sqrt(k * k / (k * k + 1))) * TimeStep;
+        return a * -k * TimeStep;
     }
     else {
         double k = sigma3 * (9.0 / 4.0 * x * x - 3.0 * x);
-        return Vector2(sqrt(1 / (k * k + 1)), sqrt(k * k / (k * k + 1))) * TimeStep;
+        return a * -k* TimeStep;
     }
 }
 
 void calculatePressure() {
-    double B = Density0 * Cs * Cs / Gamma /1000;
+    double B = Density0 * Cs * Cs / Gamma /100;
 
     for (int i = 0; i < ParticleCount; i++) {
         Particle &pi = particles[i];
@@ -216,11 +199,11 @@ inline void momentumEquation() {
         Vector2 delta(0, 0);
 
         for (int j = 0; j < neighbors[i].count; j++) {
-            const Particle &pj = *neighbors[i].particles[j];
+            Particle &pj = *neighbors[i].particles[j];
             double dis = neighbors[i].dis[j];
 
             delta = delta -
-                    deltaW(dis) * Mass * (p.pressure / p.density / p.density + pj.pressure / pj.density / pj.density);
+                    deltaW(pj.pos - p.pos) * Mass * (p.pressure / p.density / p.density + pj.pressure / pj.density / pj.density);
         }
         p.v = p.v + delta * TimeStep;
     }
@@ -232,13 +215,14 @@ inline void viscosityEquation() {
         Vector2 delta(0, 0);
 
         for (int j = 0; j < neighbors[i].count; j++) {
-            const Particle &pj = *neighbors[i].particles[j];
+             Particle &pj = *neighbors[i].particles[j];
             double dis = neighbors[i].dis[j];
 
             double dianji = (p.v - pj.v) * (p.pos - pj.pos);
             if (dianji < 0) {
-                delta = delta - deltaW(dis) * Mass * ((-2 * Alpha * ParticleRadius * Cs / (p.density + pj.density)) *
-                                                      (dianji / (dis * dis + Epsilon * ParticleRadius * ParticleRadius)));
+                delta = delta - deltaW(pj.pos - p.pos) * Mass * ((-2 * Alpha * ParticleRadius * Cs / (p.density + pj.density)) *
+                                                      (dianji /
+                                                       (dis * dis + Epsilon * ParticleRadius * ParticleRadius)));
             }
         }
         p.v = p.v + delta * TimeStep;
@@ -248,22 +232,23 @@ inline void viscosityEquation() {
 void collisions() {
     for (int i = 0; i < ParticleCount; i++) {
         Particle &p = particles[i];
-        if(p.pos.x >= 10 || p.pos.x <= 0)
-            p.v.x = - 0.7 * p.v.x;
-        if(p.pos.y >= 10 || p.pos.y <= 0)
-            p.v.y = - 0.7 * p.v.y;
+        if (p.pos.x >= 10 || p.pos.x <= 0)
+            p.v.x = -0.2 * p.v.x;
+        if (p.pos.y >= 10 || p.pos.y <= 0)
+            p.v.y = -0.2 * p.v.y;
     }
 }
 
-double random(double x, double y) {
+/*double random(double x, double y) {
     return x + (y - x) * ((double) rand() / (double) (RAND_MAX - 1));
-}
+}*/
 
 void generateParticles() {
-    srand((unsigned)time(NULL));
-    for (int i = 0; i < ParticleCount; i++) {
-        particles[i].pos = Vector2(random(ParticleRadius, ViewHeight-ParticleRadius), random(ParticleRadius, ViewHeight-ParticleRadius));
-        particles[i].v = Vector2(random(-1.0f, 1.0f), random(-1.0f, 1.0f));
+    for (int i = 0; i < MatrixRow; i++) {
+        for (int j = 0; j < MatrixCol; j++) {
+            particles[i*MatrixCol+j].pos = Vector2(h+j*2*h, h+i*2*h);
+            particles[i*MatrixCol+j].v = Vector2(0, 0);
+        }
     }
 }
 
