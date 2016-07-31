@@ -3,7 +3,6 @@
 #include <cmath>
 #include <algorithm>
 #include <cstring>
-#include "Vector2.h"
 
 using namespace std;
 
@@ -14,14 +13,14 @@ using namespace std;
 #define Gamma 7
 // #define Eta 0.01
 // alpha is between 0.08~0.5
-#define Alpha 0.08
-#define Cs 1500
-#define Density0 1000
+#define Alpha 0.4
+#define Cs 88.5
+#define Density0 1000.0
 #define Epsilon 0.01
 #define Gravity 9.81
-#define TimeStep 4.52E-4
+#define TimeStep 0.001
 #define H (6 * ParticleRadius)
-#define Mass (Density0 * 4 / 3 * Pi * pow(ParticleRadius, 3))
+#define Mass (40*Density0 * 4 / 3 * Pi * ParticleRadius*ParticleRadius*ParticleRadius)
 #define MaxNeighborCount 64
 
 #define ScreenWidth 500
@@ -31,9 +30,8 @@ using namespace std;
 #define CellSize H
 
 #define SubSteps 100
-// #define ShowStep SubSteps * TimeStep
 
-#define h 1.0
+#define h ParticleRadius
 #define sigma3 ( 2 / (3 * h))
 
 #define WallCount 4
@@ -94,7 +92,6 @@ struct Neighbors {
 Particle particles[ParticleCount];
 Neighbors neighbors[ParticleCount];
 Vector2 prePosition[ParticleCount];
-// Vector2 relaxedPosition[ParticleCount];
 
 Wall walls[WallCount] = {
         Wall(1, 0, 0),
@@ -115,7 +112,7 @@ int gridCoords[ParticleCount * 2];
 
 void updateGrid() {
     // Clear grid
-    memset(grid, NULL, GridCellCount * sizeof(Particle *));
+    memset(grid, 0, GridCellCount * sizeof(Particle *));
 
     // Add particles to grid
     for (int i = 0; i < ParticleCount; i++) {
@@ -159,29 +156,30 @@ void advance() {
 }
 
 double W(double x) {
-    if (2 > x)
+    if (2 < x)
         return 0;
-    else if (1 < x && 2 >= x)
+    else if (1 < x)
         return sigma3 / 4 * pow((2 - x), 3);
-    else if (0 <= x && 1 >= x)
-        return sigma3 * (1 - 1.5 * x * x * (1 - x / 2));
+    else
+        return sigma3 * (1 - 1.5 * x * x * (1 - x / 2.0));
 }
 
 Vector2 deltaW(double x) {
-    if (2 > x)
+    if (2 < x)
         return Vector2(0, 0);
-    else if (1 < x && 2 >= x) {
+    else if (1 < x) {
         double k = -3.0 * sigma3 / 4.0 * pow((2 - x), 2);
         return Vector2(sqrt(1 / (k * k + 1)), sqrt(k * k / (k * k + 1))) * TimeStep;
     }
-    else if (0 <= x && 1 >= x) {
+    else {
         double k = sigma3 * (9.0 / 4.0 * x * x - 3.0 * x);
         return Vector2(sqrt(1 / (k * k + 1)), sqrt(k * k / (k * k + 1))) * TimeStep;
     }
 }
 
 void calculatePressure() {
-    double B = Density0 * Cs * Cs / Gamma;
+    double B = Density0 * Cs * Cs / Gamma /1000;
+
     for (int i = 0; i < ParticleCount; i++) {
         Particle &pi = particles[i];
         int gi = gridCoords[2 * i];
@@ -208,10 +206,11 @@ void calculatePressure() {
         }
         pi.density = density;
         pi.pressure = B * (pow(pi.density / Density0, Gamma) - 1);
+        //printf("%f %f\n",pi.density,pi.pressure);
     }
 }
 
-void momentumEquation() {
+inline void momentumEquation() {
     for (int i = 0; i < ParticleCount; i++) {
         Particle &p = particles[i];
         Vector2 delta(0, 0);
@@ -227,7 +226,7 @@ void momentumEquation() {
     }
 }
 
-void viscosityEquation() {
+inline void viscosityEquation() {
     for (int i = 0; i < ParticleCount; i++) {
         Particle &p = particles[i];
         Vector2 delta(0, 0);
@@ -249,24 +248,10 @@ void viscosityEquation() {
 void collisions() {
     for (int i = 0; i < ParticleCount; i++) {
         Particle &p = particles[i];
-        for (int j = 0; j < WallCount; j++) {
-            const Wall &wall = walls[j];
-            double dis = wall.x * p.pos.x + wall.y * p.pos.y - wall.c;
-            if (dis < ParticleRadius) {
-                switch (j) {
-                    case 0:
-                    case 2:
-                        p.v.y = -p.v.y;
-                        break;
-                    case 1:
-                    case 3:
-                        p.v.x = -p.v.x;
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
+        if(p.pos.x >= 10 || p.pos.x <= 0)
+            p.v.x = - 0.7 * p.v.x;
+        if(p.pos.y >= 10 || p.pos.y <= 0)
+            p.v.y = - 0.7 * p.v.y;
     }
 }
 
@@ -275,9 +260,10 @@ double random(double x, double y) {
 }
 
 void generateParticles() {
+    srand((unsigned)time(NULL));
     for (int i = 0; i < ParticleCount; i++) {
-        particles[i].pos = Vector2(random(0, ViewWidth), random(0, ViewHeight));
-        particles[i].v = Vector2(random(0.9f, 1.1f), random(0.9f, 1.1f));
+        particles[i].pos = Vector2(random(ParticleRadius, ViewHeight-ParticleRadius), random(ParticleRadius, ViewHeight-ParticleRadius));
+        particles[i].v = Vector2(random(-1.0f, 1.0f), random(-1.0f, 1.0f));
     }
 }
 
@@ -309,8 +295,8 @@ void update() {
         momentumEquation();
         viscosityEquation();
         advance();
-        updateGrid();
         collisions();
+        updateGrid();
     }
     glutPostRedisplay();
 }
@@ -318,17 +304,16 @@ void update() {
 int main(int argc, char **argv) {
     glutInitWindowSize(ScreenWidth, ScreenHeight);
     glutInit(&argc, argv);
-    glutInitDisplayString("samples stencil>=3 rgb double depth");
     glutCreateWindow("SPH");
     glutDisplayFunc(Render);
     glutIdleFunc(update);
 
     //INIT
     memset(particles, 0, ParticleCount * sizeof(Particle));
-    UpdateGrid();
+    generateParticles();
+    updateGrid();
 
     glutMainLoop();
 
     return 0;
 }
-
