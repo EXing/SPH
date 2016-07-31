@@ -92,7 +92,7 @@ Wall walls[WallCount] = {
 
 // Neighbors is used to save the ith particle's neighbors in its centered grid.
 struct Neighbors {
-    const Particle *particles[MaxNeighborCount];
+    Particle *particles[MaxNeighborCount];
     double dis[MaxNeighborCount];
     int count;
 };
@@ -166,22 +166,17 @@ double W(double x) {
         return sigma3 * (1 - 1.5 * x * x * (1 - x / 2.0));
 }
 
-Vector2 deltaW(double x) {
+Vector2 deltaW(Vector2 a) {
+    double x = a.Sqrt();
     if (2 < x)
         return Vector2(0, 0);
     else if (1 < x) {
         double k = -3.0 * sigma3 / 4.0 * pow((2 - x), 2);
-        if (k >= 0)
-            return Vector2(sqrt(1 / (k * k + 1)), sqrt(k * k / (k * k + 1))) * TimeStep;
-        else
-            return Vector2(-sqrt(1 / (k * k + 1)), -sqrt(k * k / (k * k + 1))) * TimeStep;
+        return a * -k;
     }
     else {
         double k = sigma3 * (9.0 / 4.0 * x * x - 3.0 * x);
-        if (k >= 0)
-            return Vector2(sqrt(1 / (k * k + 1)), sqrt(k * k / (k * k + 1))) * TimeStep;
-        else
-            return Vector2(-sqrt(1 / (k * k + 1)), -sqrt(k * k / (k * k + 1))) * TimeStep;
+        return a * -k;
     }
 }
 
@@ -222,13 +217,14 @@ inline void momentumEquation() {
         Vector2 delta(0, 0);
 
         for (int j = 0; j < neighbors[i].count; j++) {
-            const Particle &pj = *neighbors[i].particles[j];
+            Particle &pj = *neighbors[i].particles[j];
             double dis = neighbors[i].dis[j];
 
             delta = delta -
-                    deltaW(dis) * Mass * (p.pressure / p.density / p.density + pj.pressure / pj.density / pj.density);
+                    (deltaW(pj.pos - p.pos) * Mass *
+                     (p.pressure / p.density / p.density + pj.pressure / pj.density / pj.density));
         }
-        p.v = p.v + delta * TimeStep;
+        p.v = p.v + (delta * TimeStep);
     }
 }
 
@@ -238,17 +234,18 @@ inline void viscosityEquation() {
         Vector2 delta(0, 0);
 
         for (int j = 0; j < neighbors[i].count; j++) {
-            const Particle &pj = *neighbors[i].particles[j];
+            Particle &pj = *neighbors[i].particles[j];
             double dis = neighbors[i].dis[j];
 
             double dianji = (p.v - pj.v) * (p.pos - pj.pos);
             if (dianji < 0) {
-                delta = delta - deltaW(dis) * Mass * ((-2 * Alpha * ParticleRadius * Cs / (p.density + pj.density)) *
-                                                      (dianji /
-                                                       (dis * dis + Epsilon * ParticleRadius * ParticleRadius)));
+                delta = delta - (deltaW(pj.pos - p.pos) * Mass *
+                                 ((-2 * Alpha * ParticleRadius * Cs / (p.density + pj.density)) *
+                                  (dianji /
+                                   (dis * dis + Epsilon * ParticleRadius * ParticleRadius))));
             }
         }
-        p.v = p.v + delta * TimeStep;
+        p.v = p.v + (delta * TimeStep);
     }
 }
 
@@ -256,9 +253,9 @@ void collisions() {
     for (int i = 0; i < ParticleCount; i++) {
         Particle &p = particles[i];
         if (p.pos.x >= 10.0 || p.pos.x <= 0)
-            p.v.x = -0.5 * p.v.x;
+            p.v.x = -0.2 * p.v.x;
         if (p.pos.y >= 10.0 || p.pos.y <= 0)
-            p.v.y = -0.5 * p.v.y;
+            p.v.y = -0.2 * p.v.y;
     }
 }
 
