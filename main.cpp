@@ -18,7 +18,7 @@ using namespace std;
 #define Epsilon 0.01
 #define Gravity 9.81
 #define TimeStep 4.52E-4
-#define H (6 * ParticleRadius)
+#define H (4 * ParticleRadius)
 #define Mass (Density0 * 4 / 3 * Pi * pow(ParticleRadius, 3))
 #define MaxNeighborCount 64
 
@@ -215,9 +215,9 @@ void momentumEquation() {
             double dis = neighbors[i].dis[j];
 
             delta = delta -
-                    deltaW(dis) * Mass * (p.pressure / p.density / p.density + pj.pressure / pj.density / pj.density);
+                    (deltaW(dis) * Mass * (p.pressure / p.density / p.density + pj.pressure / pj.density / pj.density));
         }
-        p.v = p.v + delta * TimeStep;
+        p.v = p.v + (delta * TimeStep);
     }
 }
 
@@ -232,12 +232,12 @@ void viscosityEquation() {
 
             double dianji = (p.v - pj.v) * (p.pos - pj.pos);
             if (dianji < 0) {
-                delta = delta - deltaW(dis) * Mass * ((-2 * Alpha * ParticleRadius * Cs / (p.density + pj.density)) *
-                                                      (dianji /
-                                                       (dis * dis + Epsilon * ParticleRadius * ParticleRadius)));
+                delta = delta - (deltaW(dis) * Mass * ((-2 * Alpha * ParticleRadius * Cs / (p.density + pj.density)) *
+                                                       (dianji /
+                                                        (dis * dis + Epsilon * ParticleRadius * ParticleRadius))));
             }
         }
-        p.v = p.v + delta * TimeStep;
+        p.v = p.v + (delta * TimeStep);
     }
 }
 
@@ -273,7 +273,7 @@ void generateParticles() {
     if (count == ParticleCount - 1)
         return;
     for (int i = 0; i < ParticleCount; i++) {
-        particles[i].pos = Vector2(random(0, ViewWidth), random(0, ViewHeight));
+        particles[i].pos = Vector2(random(0, ViewWidth - 1), random(0, ViewHeight - 1));
         particles[i].v = Vector2(random(0.9f, 1.1f), random(0.9f, 1.1f));
     }
     count = ParticleCount - 1;
@@ -325,7 +325,7 @@ int main(int argc, char **argv) {
 
     //INIT
     memset(particles, 0, ParticleCount * sizeof(Particle));
-    //UpdateGrid();
+    updateGrid();
 
     glutMainLoop();
 
