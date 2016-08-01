@@ -227,7 +227,6 @@ inline void viscosityEquation() {
 }
 
 #define k 1.2
-
 void collisions() {
     for (int i = 0; i < ParticleCount; i++) {
         Particle &p = particles[i];
@@ -247,6 +246,7 @@ void collisions() {
         }
     }
 }
+#undef k
 
 void generateParticles() {
     for (int i = 0; i < MatrixRow; i++) {
