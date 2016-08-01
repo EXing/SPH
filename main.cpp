@@ -1,13 +1,10 @@
-#include <iostream>
 #include <GL/glut.h>
 #include <cmath>
-#include <algorithm>
 #include <cstring>
 
 using namespace std;
 
 #define ParticleCount 1000
-#define Pi 3.1415926535f
 #define ParticleRadius 0.05
 #define Gamma 7
 // #define Eta 0.01
@@ -26,7 +23,7 @@ using namespace std;
 #define ViewWidth 10.0f
 #define ViewHeight (ScreenHeight * ViewWidth / ScreenWidth)
 #define CellSize H
-#define SubSteps 100
+#define SubSteps 10
 #define h ParticleRadius
 #define sigma3 ( 2 / (3 * h))
 #define MatrixRow 25
@@ -73,7 +70,7 @@ public:
 
 //neighbors[i] used to record the ith particle's neighbors in its centered grid.
 struct Neighbors {
-     Particle *particles[MaxNeighborCount];
+    Particle *particles[MaxNeighborCount];
     double dis[MaxNeighborCount];
     int count;
 };
@@ -156,12 +153,12 @@ Vector2 deltaW(Vector2 a) {
     }
     else {
         double k = sigma3 * (9.0 / 4.0 * x * x - 3.0 * x);
-        return a * -k* TimeStep;
+        return a * -k * TimeStep;
     }
 }
 
 void calculatePressure() {
-    double B = Density0 * Cs * Cs / Gamma /100;
+    double B = Density0 * Cs * Cs / Gamma / 10;
 
     for (int i = 0; i < ParticleCount; i++) {
         Particle &pi = particles[i];
@@ -175,7 +172,7 @@ void calculatePressure() {
             for (int nj = gj - GridWidth; nj <= gj + GridWidth; nj += GridWidth) {
                 for (Particle *pj = grid[ni + nj]; pj != NULL; pj = pj->next) {
                     double r = (pj->pos - pi.pos).Sqrt();
-                    if (/*r < sqrt(Epsilon) || */r > H)
+                    if (r > H)
                         continue;
 
                     density += Mass * W(r);
@@ -189,7 +186,6 @@ void calculatePressure() {
         }
         pi.density = density;
         pi.pressure = B * (pow(pi.density / Density0, Gamma) - 1);
-        //printf("%f %f\n",pi.density,pi.pressure);
     }
 }
 
@@ -200,10 +196,10 @@ inline void momentumEquation() {
 
         for (int j = 0; j < neighbors[i].count; j++) {
             Particle &pj = *neighbors[i].particles[j];
-            double dis = neighbors[i].dis[j];
 
             delta = delta -
-                    deltaW(pj.pos - p.pos) * Mass * (p.pressure / p.density / p.density + pj.pressure / pj.density / pj.density);
+                    deltaW(pj.pos - p.pos) * Mass *
+                    (p.pressure / p.density / p.density + pj.pressure / pj.density / pj.density);
         }
         p.v = p.v + delta * TimeStep;
     }
@@ -215,39 +211,48 @@ inline void viscosityEquation() {
         Vector2 delta(0, 0);
 
         for (int j = 0; j < neighbors[i].count; j++) {
-             Particle &pj = *neighbors[i].particles[j];
+            Particle &pj = *neighbors[i].particles[j];
             double dis = neighbors[i].dis[j];
 
             double dianji = (p.v - pj.v) * (p.pos - pj.pos);
             if (dianji < 0) {
-                delta = delta - deltaW(pj.pos - p.pos) * Mass * ((-2 * Alpha * ParticleRadius * Cs / (p.density + pj.density)) *
-                                                      (dianji /
-                                                       (dis * dis + Epsilon * ParticleRadius * ParticleRadius)));
+                delta = delta -
+                        deltaW(pj.pos - p.pos) * Mass * ((-2 * Alpha * ParticleRadius * Cs / (p.density + pj.density)) *
+                                                         (dianji /
+                                                          (dis * dis + Epsilon * ParticleRadius * ParticleRadius)));
             }
         }
-        p.v = p.v + delta * TimeStep;
+        p.v = p.v + delta * TimeStep * 1000000;
     }
 }
+
+#define k 1.2
 
 void collisions() {
     for (int i = 0; i < ParticleCount; i++) {
         Particle &p = particles[i];
-        if (p.pos.x >= 10 || p.pos.x <= 0)
-            p.v.x = -0.2 * p.v.x;
-        if (p.pos.y >= 10 || p.pos.y <= 0)
-            p.v.y = -0.2 * p.v.y;
+        if (p.pos.x >= 10 - ParticleRadius) {
+            p.v.x = k * (p.v.x > 0 ? -p.v.x : p.v.x);
+            p.pos.x = 10 - ParticleRadius;
+        } else if (p.pos.x <= ParticleRadius) {
+            p.v.x = k * (p.v.x < 0 ? -p.v.x : p.v.x);
+            p.pos.x = ParticleRadius;
+        }
+        if (p.pos.y >= 10 - ParticleRadius) {
+            p.v.y = k * (p.v.y > 0 ? -p.v.y : p.v.y);
+            p.pos.y = 10 - ParticleRadius;
+        } else if (p.pos.y <= ParticleRadius) {
+            p.v.y = k * (p.v.y < 0 ? -p.v.y : p.v.y);
+            p.pos.y = ParticleRadius;
+        }
     }
 }
-
-/*double random(double x, double y) {
-    return x + (y - x) * ((double) rand() / (double) (RAND_MAX - 1));
-}*/
 
 void generateParticles() {
     for (int i = 0; i < MatrixRow; i++) {
         for (int j = 0; j < MatrixCol; j++) {
-            particles[i*MatrixCol+j].pos = Vector2(h+j*2*h, h+i*2*h);
-            particles[i*MatrixCol+j].v = Vector2(0, 0);
+            particles[i * MatrixCol + j].pos = Vector2(h + j * 2 * h, h + i * 2 * h);
+            particles[i * MatrixCol + j].v = Vector2(0, 0);
         }
     }
 }
